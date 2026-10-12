@@ -1,0 +1,17 @@
+{
+  "name": "com.figix.modal-transform",
+  "version": "0.1.0",
+  "displayName": "Figix Modal Transform",
+  "description": "Keyboard-first W/E/R modal transforms for the Unity Scene view.",
+  "unity": "6000.0",
+  "author": {
+    "name": "Figix",
+    "url": "https://github.com/Figix"
+  },
+  "keywords": [
+    "editor",
+    "transform",
+    "modal",
+    "3ds-max"
+  ]
+}
