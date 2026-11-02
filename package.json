@@ -1,6 +1,6 @@
 {
   "name": "com.figix.modal-transform",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "displayName": "Figix Modal Transform",
   "description": "Keyboard-first W/E/R modal transforms for the Unity Scene view.",
   "unity": "6000.0",

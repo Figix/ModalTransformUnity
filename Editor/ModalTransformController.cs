@@ -835,7 +835,10 @@ namespace Figix.ModalTransformUnity
         private static void DrawGizmo()
         {
             float size = HandleUtility.GetHandleSize(s_Pivot);
-            Quaternion basis = CurrentBasis();
+            // Scale only ever changes localScale, so its gizmo always follows the object.
+            Quaternion basis = s_Mode == TransformMode.Scale && Snapshots.Count > 0
+                ? Snapshots[0].Rotation
+                : CurrentBasis();
             bool axisMode = IsAxisConstraint(s_Constraint);
             bool planeMode = IsPlaneConstraint(s_Constraint);
 
@@ -925,13 +928,32 @@ namespace Figix.ModalTransformUnity
 
             string constraint = s_Constraint == Constraint.None
                 ? "Free"
-                : s_Constraint + (s_ConstraintLocal ? " (Local)" : " (World)");
+                : s_Mode == TransformMode.Scale
+                    ? s_Constraint.ToString()
+                    : s_Constraint + (s_ConstraintLocal ? " (Local)" : " (World)");
             string numeric = string.IsNullOrEmpty(s_NumericInput) ? "Mouse" : s_NumericInput;
             string text = string.Format("{0} | {1} | {2}\nLMB/Enter confirm · RMB/Esc cancel", s_Mode, constraint, numeric);
-            Rect rect = new Rect(12f, sceneView.position.height - 58f, 320f, 38f);
+            const float width = 320f;
+            const float height = 38f;
+            const float margin = 12f;
+            ModalTransformSettings.HudCorner corner = ModalTransformSettings.Corner;
+            bool right = corner == ModalTransformSettings.HudCorner.TopRight
+                || corner == ModalTransformSettings.HudCorner.BottomRight;
+            bool top = corner == ModalTransformSettings.HudCorner.TopLeft
+                || corner == ModalTransformSettings.HudCorner.TopRight;
+            // Top offset clears the Scene view toolbar overlay.
+            Rect rect = new Rect(
+                right ? sceneView.position.width - width - margin : margin,
+                top ? 48f : sceneView.position.height - height - 20f,
+                width,
+                height);
 
             s_HudColor = Color.Lerp(s_HudColor, SampleHudColor(rect), 0.5f);
-            GUIStyle style = new GUIStyle(EditorStyles.boldLabel) { fontSize = 12 };
+            GUIStyle style = new GUIStyle(EditorStyles.boldLabel)
+            {
+                fontSize = 12,
+                alignment = right ? TextAnchor.UpperRight : TextAnchor.UpperLeft
+            };
             Color shadow = s_HudColor.grayscale > 0.5f ? Color.black : Color.white;
 
             Handles.BeginGUI();

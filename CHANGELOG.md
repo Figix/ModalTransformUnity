@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.2] - 2026-11-02
+
+### Added
+
+- HUD position (four corners) selectable in Preferences → Figix → Modal Transform.
+
+### Changed
+
+- Scale gizmo always follows the object's local axes.
+
 ## [0.2.1] - 2026-11-02
 
 ### Added

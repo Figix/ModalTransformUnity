@@ -26,6 +26,22 @@ namespace Figix.ModalTransformUnity
             AxisZ
         }
 
+        internal enum HudCorner
+        {
+            TopLeft,
+            TopRight,
+            BottomLeft,
+            BottomRight
+        }
+
+        private const string HudCornerPref = "Figix.ModalTransform.HudCorner";
+
+        internal static HudCorner Corner
+        {
+            get { return (HudCorner)EditorPrefs.GetInt(HudCornerPref, (int)HudCorner.BottomLeft); }
+            set { EditorPrefs.SetInt(HudCornerPref, (int)value); }
+        }
+
         private static readonly Dictionary<Action, KeyCode> Defaults = new Dictionary<Action, KeyCode>
         {
             { Action.Translate, KeyCode.W },
@@ -61,6 +77,7 @@ namespace Figix.ModalTransformUnity
             {
                 EditorPrefs.DeleteKey(PrefsPrefix + pair.Key);
             }
+            EditorPrefs.DeleteKey(HudCornerPref);
             Cache.Clear();
         }
 
@@ -97,6 +114,10 @@ namespace Figix.ModalTransformUnity
             {
                 ResetAll();
             }
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("HUD", EditorStyles.boldLabel);
+            Corner = (HudCorner)EditorGUILayout.EnumPopup("HUD position", Corner);
 
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Package", EditorStyles.boldLabel);
