@@ -10,7 +10,7 @@ This is an **Editor-only Unity Package**. It does not add runtime code to builds
 - Intended range: **Unity 6 (`6000.x`)**
 - Platforms: Editor code is platform-independent; initial development is on Windows.
 
-Batch compilation has been verified on:
+Batch compilation was verified on the following versions for v0.1.0. Newer releases have been developed against Unity 6 but not re-verified on every line:
 
 - `6000.0.62f1`
 - `6000.2.9f1`
@@ -35,7 +35,7 @@ The package deliberately uses APIs available in Unity 6000.0. Future Unity 6 rel
 
 6. Click **Install**.
 
-To pin a known version after tags are published, append a tag such as `#v0.1.0`.
+To pin a known version after tags are published, append a tag such as `#v0.2.2`.
 
 ### Method 2: `Packages/manifest.json`
 
@@ -81,7 +81,17 @@ Axis constraints no longer depend on the Scene toolbar's Global/Local setting; t
 
 ### Infinite mouse movement
 
-While a modal transform is active the cursor is held in place and only its travel distance is used, so you can keep adjusting values past the Scene view edge or onto another monitor. On Windows this uses the Win32 cursor API; other platforms use Unity's mouse jumping.
+While a modal transform is active the cursor is held in place and only its travel distance is used, so you can keep adjusting values past the Scene view edge or onto another monitor. On Windows this uses the Win32 cursor API and the cursor is hidden for the duration; other platforms use Unity's mouse jumping and cannot hide the cursor.
+
+### Gizmo
+
+A gizmo is drawn at the pivot during a modal transform. With an axis constraint only that axis is shown; with a plane constraint the two plane axes are shown. The gizmo is display-only and cannot be dragged. The Scale gizmo always follows the object's local axes.
+
+**Scale limitation:** Unity transforms store scale in local axes only and cannot hold shear, so a World-axis scale on a rotated object still changes the local scale components. Use the Local axis for exact results on rotated objects.
+
+### HUD
+
+A HUD with the mode, constraint, and numeric input appears only while a transform is active. Its colour is the complement of the Scene view pixels behind it. Choose its corner (top/bottom, left/right) in **Edit → Preferences → Figix → Modal Transform**.
 
 ### Custom key bindings
 
@@ -113,7 +123,7 @@ Planned follow-ups include snapping controls, pivot-mode refinements, prefab-sta
 
 Unity does not track Git packages automatically. Pick one:
 
-- **Pinned tag (recommended):** install with `...ModalTransformUnity.git#v0.2.0`. To update, change the tag in `Packages/manifest.json` (or the Package Manager URL) and let Unity re-resolve. See [CHANGELOG](CHANGELOG.md) for new tags.
+- **Pinned tag (recommended):** install with `...ModalTransformUnity.git#v0.2.2`. To update, change the tag in `Packages/manifest.json` (or the Package Manager URL) and let Unity re-resolve. See [CHANGELOG](CHANGELOG.md) for new tags.
 - **Unpinned URL:** Unity locks the commit in `Packages/packages-lock.json`. Update with **Edit → Preferences → Figix → Modal Transform → Update to latest**, or in Package Manager select the package and press **Update** if offered.
 - **Manual fallback:** close Unity, delete the `com.figix.modal-transform` block from `Packages/packages-lock.json`, reopen the project.
 
