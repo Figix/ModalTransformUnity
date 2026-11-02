@@ -71,7 +71,7 @@ Clone this repository anywhere outside the Unity project's `Assets` folder. In P
 | Translate | `W` | Start modal movement. |
 | Rotate | `E` | Start modal rotation. |
 | Scale | `R` | Start modal scaling. |
-| Axis constraint | `X`, `Y`, `Z` | 1st press: World axis. 2nd press: Local axis (object rotation). 3rd press: free again. |
+| Axis constraint | `X`, `Y`, `Z` | Cycles World → Local → World … on each press. Only that axis gizmo is shown. Pressing W/E/R resets to the free state. |
 | Plane constraint | `Shift+X/Y/Z` | Exclude that axis. For example, `Shift+Z` uses the XY plane. |
 | Numeric value | Number keys | Enter distance, degrees, or scale multiplier. |
 | Confirm | Left Click or Enter | Keep the result as one Undo operation. |

@@ -78,6 +78,7 @@ namespace Figix.ModalTransformUnity
         private static bool s_UseNativeCursor;
         private static int s_AnchorX;
         private static int s_AnchorY;
+        private static int s_HiddenCalls;
         private static Vector3 s_ViewRight;
         private static Vector3 s_ViewUp;
         private static Vector3 s_ViewForward;
@@ -129,6 +130,10 @@ namespace Figix.ModalTransformUnity
             }
 
             HandleActiveInput(sceneView, current);
+            if (s_IsActive && current.type == EventType.Repaint)
+            {
+                DrawGizmo();
+            }
             DrawHud(sceneView);
         }
 
@@ -375,20 +380,15 @@ namespace Figix.ModalTransformUnity
 
         private static void SetConstraint(Constraint constraint)
         {
-            // Press 1: world axis, press 2: local axis, press 3: free again.
+            // Press 1: world, 2: local, 3: world, ... Switching W/E/R returns to the free state.
             if (s_Constraint != constraint)
             {
                 s_Constraint = constraint;
                 s_ConstraintLocal = false;
             }
-            else if (!s_ConstraintLocal)
-            {
-                s_ConstraintLocal = true;
-            }
             else
             {
-                s_Constraint = Constraint.None;
-                s_ConstraintLocal = false;
+                s_ConstraintLocal = !s_ConstraintLocal;
             }
             ApplyCurrentTransform();
         }
@@ -759,6 +759,12 @@ namespace Figix.ModalTransformUnity
                 s_AnchorX = point.X;
                 s_AnchorY = point.Y;
                 s_UseNativeCursor = true;
+                s_HiddenCalls = 0;
+                while (ShowCursor(false) >= 0 && s_HiddenCalls < 16)
+                {
+                    s_HiddenCalls++;
+                }
+                s_HiddenCalls++;
                 return;
             }
 #endif
@@ -771,6 +777,12 @@ namespace Figix.ModalTransformUnity
             {
                 EditorGUIUtility.SetWantsMouseJumping(0);
             }
+#if UNITY_EDITOR_WIN
+            for (; s_HiddenCalls > 0; s_HiddenCalls--)
+            {
+                ShowCursor(true);
+            }
+#endif
             s_UseNativeCursor = false;
         }
 
@@ -814,19 +826,119 @@ namespace Figix.ModalTransformUnity
         private static extern bool GetCursorPos(out POINT point);
 
         [DllImport("user32.dll")]
+        private static extern int ShowCursor(bool show);
+
+        [DllImport("user32.dll")]
         private static extern bool SetCursorPos(int x, int y);
 #endif
 
+        private static void DrawGizmo()
+        {
+            float size = HandleUtility.GetHandleSize(s_Pivot);
+            Quaternion basis = CurrentBasis();
+            bool axisMode = IsAxisConstraint(s_Constraint);
+            bool planeMode = IsPlaneConstraint(s_Constraint);
+
+            for (int axis = 0; axis < 3; axis++)
+            {
+                bool visible = s_Constraint == Constraint.None
+                    || (axisMode && (int)s_Constraint - (int)Constraint.X == axis)
+                    || (planeMode && (int)s_Constraint - (int)Constraint.PlaneX != axis);
+                if (!visible)
+                {
+                    continue;
+                }
+
+                Vector3 direction = basis * (axis == 0 ? Vector3.right : axis == 1 ? Vector3.up : Vector3.forward);
+                Color color = axis == 0 ? Handles.xAxisColor : axis == 1 ? Handles.yAxisColor : Handles.zAxisColor;
+                using (new Handles.DrawingScope(color))
+                {
+                    switch (s_Mode)
+                    {
+                        case TransformMode.Translate:
+                            Handles.ArrowHandleCap(0, s_Pivot, Quaternion.LookRotation(direction), size, EventType.Repaint);
+                            break;
+                        case TransformMode.Rotate:
+                            Handles.DrawWireDisc(s_Pivot, direction, size * 0.9f);
+                            break;
+                        default:
+                            Handles.DrawLine(s_Pivot, s_Pivot + direction * size);
+                            Handles.CubeHandleCap(0, s_Pivot + direction * size, Quaternion.identity, size * 0.12f, EventType.Repaint);
+                            break;
+                    }
+                }
+            }
+
+            if (s_Mode == TransformMode.Rotate && s_Constraint == Constraint.None)
+            {
+                using (new Handles.DrawingScope(Color.white))
+                {
+                    Handles.DrawWireDisc(s_Pivot, s_ViewForward, size);
+                }
+            }
+        }
+
+        private static Color s_HudColor = Color.white;
+
+        // Complement of the pixels behind the HUD, falling back to black/white when the
+        // complement would be too close in brightness to read.
+        private static Color SampleHudColor(Rect rect)
+        {
+            try
+            {
+                Vector2 screen = GUIUtility.GUIToScreenPoint(new Vector2(rect.x, rect.y - 6f));
+                Color[] pixels = InternalEditorUtility.ReadScreenPixel(
+                    screen * EditorGUIUtility.pixelsPerPoint, 32, 2);
+                if (pixels == null || pixels.Length == 0)
+                {
+                    return s_HudColor;
+                }
+
+                Color average = Color.black;
+                foreach (Color pixel in pixels)
+                {
+                    average += pixel;
+                }
+                average /= pixels.Length;
+                average.a = 1f;
+
+                Color inverse = new Color(1f - average.r, 1f - average.g, 1f - average.b, 1f);
+                float background = average.grayscale;
+                if (Mathf.Abs(inverse.grayscale - background) < 0.4f)
+                {
+                    inverse = background > 0.5f ? Color.black : Color.white;
+                }
+                return inverse;
+            }
+            catch (Exception)
+            {
+                return s_HudColor;
+            }
+        }
+
         private static void DrawHud(SceneView sceneView)
         {
-            Handles.BeginGUI();
+            if (!s_IsActive || Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
             string constraint = s_Constraint == Constraint.None
                 ? "Free"
                 : s_Constraint + (s_ConstraintLocal ? " (Local)" : " (World)");
             string numeric = string.IsNullOrEmpty(s_NumericInput) ? "Mouse" : s_NumericInput;
-            GUI.Box(
-                new Rect(12f, sceneView.position.height - 58f, 320f, 38f),
-                string.Format("{0} | {1} | {2}\nLMB/Enter confirm · RMB/Esc cancel", s_Mode, constraint, numeric));
+            string text = string.Format("{0} | {1} | {2}\nLMB/Enter confirm · RMB/Esc cancel", s_Mode, constraint, numeric);
+            Rect rect = new Rect(12f, sceneView.position.height - 58f, 320f, 38f);
+
+            s_HudColor = Color.Lerp(s_HudColor, SampleHudColor(rect), 0.5f);
+            GUIStyle style = new GUIStyle(EditorStyles.boldLabel) { fontSize = 12 };
+            Color shadow = s_HudColor.grayscale > 0.5f ? Color.black : Color.white;
+
+            Handles.BeginGUI();
+            style.normal.textColor = new Color(shadow.r, shadow.g, shadow.b, 0.6f);
+            GUI.Label(new Rect(rect.x + 1f, rect.y + 1f, rect.width, rect.height), text, style);
+            style.normal.textColor = s_HudColor;
+            GUI.Label(rect, text, style);
             Handles.EndGUI();
         }
     }

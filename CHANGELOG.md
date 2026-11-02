@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.1] - 2026-11-02
+
+### Added
+
+- Gizmo shown during modal transforms; axis constraints show only the relevant axis.
+- Cursor is hidden on Windows during a modal transform.
+- HUD uses the complement of the background colour and appears only while a transform is active.
+
+### Changed
+
+- Axis keys cycle World → Local → World … on each press; W/E/R reset to free.
+
 ## [0.2.0] - 2026-11-02
 
 ### Added
