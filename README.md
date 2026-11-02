@@ -71,13 +71,21 @@ Clone this repository anywhere outside the Unity project's `Assets` folder. In P
 | Translate | `W` | Start modal movement. |
 | Rotate | `E` | Start modal rotation. |
 | Scale | `R` | Start modal scaling. |
-| Axis constraint | `X`, `Y`, `Z` | Constrain to one axis. |
+| Axis constraint | `X`, `Y`, `Z` | 1st press: World axis. 2nd press: Local axis (object rotation). 3rd press: free again. |
 | Plane constraint | `Shift+X/Y/Z` | Exclude that axis. For example, `Shift+Z` uses the XY plane. |
 | Numeric value | Number keys | Enter distance, degrees, or scale multiplier. |
 | Confirm | Left Click or Enter | Keep the result as one Undo operation. |
 | Cancel | Right Click or Esc | Restore the original transforms. |
 
-The Scene toolbar's **Global/Local** setting controls translation and rotation constraint orientation. Axis-constrained scaling changes the corresponding local scale component in this MVP.
+Axis constraints no longer depend on the Scene toolbar's Global/Local setting; the key press count chooses World or Local. The first selected object defines the Local axes.
+
+### Infinite mouse movement
+
+While a modal transform is active the cursor is held in place and only its travel distance is used, so you can keep adjusting values past the Scene view edge or onto another monitor. On Windows this uses the Win32 cursor API; other platforms use Unity's mouse jumping.
+
+### Custom key bindings
+
+Open **Edit → Preferences → Figix → Modal Transform** to remap W/E/R and X/Y/Z (for example `Y` → `C`). Bindings are stored per user in EditorPrefs, so package updates never overwrite them.
 
 ### Scene camera priority
 
@@ -99,7 +107,17 @@ The package does not consume these keys while RMB is already held. If a modal tr
 - Native Undo/Redo transaction
 - RMB-first Scene camera input priority
 
-Planned follow-ups include configurable shortcuts, snapping controls, cursor wrapping, pivot-mode refinements, prefab-stage validation, and broader Unity 6 version testing.
+Planned follow-ups include snapping controls, pivot-mode refinements, prefab-stage validation, and broader Unity 6 version testing.
+
+## Updating
+
+Unity does not track Git packages automatically. Pick one:
+
+- **Pinned tag (recommended):** install with `...ModalTransformUnity.git#v0.2.0`. To update, change the tag in `Packages/manifest.json` (or the Package Manager URL) and let Unity re-resolve. See [CHANGELOG](CHANGELOG.md) for new tags.
+- **Unpinned URL:** Unity locks the commit in `Packages/packages-lock.json`. Update with **Edit → Preferences → Figix → Modal Transform → Update to latest**, or in Package Manager select the package and press **Update** if offered.
+- **Manual fallback:** close Unity, delete the `com.figix.modal-transform` block from `Packages/packages-lock.json`, reopen the project.
+
+Settings survive updates. If something breaks after updating, pin the previous tag.
 
 ## Troubleshooting
 

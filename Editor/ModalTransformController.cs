@@ -3,7 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using UnityEditor;
+using UnityEditorInternal;
 using UnityEngine;
 
 namespace Figix.ModalTransformUnity
@@ -72,7 +74,10 @@ namespace Figix.ModalTransformUnity
         private static Vector2 s_StartMouse;
         private static Vector2 s_CurrentMouse;
         private static Vector3 s_Pivot;
-        private static Quaternion s_BasisRotation;
+        private static bool s_ConstraintLocal;
+        private static bool s_UseNativeCursor;
+        private static int s_AnchorX;
+        private static int s_AnchorY;
         private static Vector3 s_ViewRight;
         private static Vector3 s_ViewUp;
         private static Vector3 s_ViewForward;
@@ -83,6 +88,7 @@ namespace Figix.ModalTransformUnity
         static ModalTransformController()
         {
             SceneView.duringSceneGui += OnSceneGui;
+            EditorApplication.update += OnEditorUpdate;
             Selection.selectionChanged += OnSelectionChanged;
             AssemblyReloadEvents.beforeAssemblyReload += CancelForShutdown;
             EditorApplication.quitting += CancelForShutdown;
@@ -157,19 +163,22 @@ namespace Figix.ModalTransformUnity
             }
 
             TransformMode mode;
-            switch (current.keyCode)
+            KeyCode key = current.keyCode;
+            if (key == ModalTransformSettings.Get(ModalTransformSettings.Action.Translate))
             {
-                case KeyCode.W:
-                    mode = TransformMode.Translate;
-                    break;
-                case KeyCode.E:
-                    mode = TransformMode.Rotate;
-                    break;
-                case KeyCode.R:
-                    mode = TransformMode.Scale;
-                    break;
-                default:
-                    return;
+                mode = TransformMode.Translate;
+            }
+            else if (key == ModalTransformSettings.Get(ModalTransformSettings.Action.Rotate))
+            {
+                mode = TransformMode.Rotate;
+            }
+            else if (key == ModalTransformSettings.Get(ModalTransformSettings.Action.Scale))
+            {
+                mode = TransformMode.Scale;
+            }
+            else
+            {
+                return;
             }
 
             Transform[] targets = Selection.GetTransforms(SelectionMode.TopLevel | SelectionMode.Editable);
@@ -209,9 +218,8 @@ namespace Figix.ModalTransformUnity
             s_ViewUp = s_Camera.transform.up;
             s_ViewForward = s_Camera.transform.forward;
             s_Pivot = CalculatePivot();
-            s_BasisRotation = Tools.pivotRotation == PivotRotation.Local
-                ? Snapshots[0].Rotation
-                : Quaternion.identity;
+            s_ConstraintLocal = false;
+            BeginCursorCapture();
 
             Undo.IncrementCurrentGroup();
             s_UndoGroup = Undo.GetCurrentGroup();
@@ -233,7 +241,11 @@ namespace Figix.ModalTransformUnity
         {
             if (current.type == EventType.MouseMove || current.type == EventType.MouseDrag)
             {
-                s_CurrentMouse = current.mousePosition;
+                if (!s_UseNativeCursor)
+                {
+                    // Mouse jumping wraps the cursor at screen edges; delta stays continuous.
+                    s_CurrentMouse += current.delta;
+                }
                 ApplyCurrentTransform();
                 current.Use();
                 sceneView.Repaint();
@@ -271,60 +283,6 @@ namespace Figix.ModalTransformUnity
                     Confirm();
                     current.Use();
                     return;
-                case KeyCode.W:
-                    if (!TryAcceptModalKey(current))
-                    {
-                        current.Use();
-                        return;
-                    }
-                    SwitchMode(TransformMode.Translate);
-                    current.Use();
-                    return;
-                case KeyCode.E:
-                    if (!TryAcceptModalKey(current))
-                    {
-                        current.Use();
-                        return;
-                    }
-                    SwitchMode(TransformMode.Rotate);
-                    current.Use();
-                    return;
-                case KeyCode.R:
-                    if (!TryAcceptModalKey(current))
-                    {
-                        current.Use();
-                        return;
-                    }
-                    SwitchMode(TransformMode.Scale);
-                    current.Use();
-                    return;
-                case KeyCode.X:
-                    if (!TryAcceptModalKey(current))
-                    {
-                        current.Use();
-                        return;
-                    }
-                    SetConstraint(current.shift ? Constraint.PlaneX : Constraint.X);
-                    current.Use();
-                    return;
-                case KeyCode.Y:
-                    if (!TryAcceptModalKey(current))
-                    {
-                        current.Use();
-                        return;
-                    }
-                    SetConstraint(current.shift ? Constraint.PlaneY : Constraint.Y);
-                    current.Use();
-                    return;
-                case KeyCode.Z:
-                    if (!TryAcceptModalKey(current))
-                    {
-                        current.Use();
-                        return;
-                    }
-                    SetConstraint(current.shift ? Constraint.PlaneZ : Constraint.Z);
-                    current.Use();
-                    return;
                 case KeyCode.Backspace:
                     if (s_NumericInput.Length > 0)
                     {
@@ -335,11 +293,68 @@ namespace Figix.ModalTransformUnity
                     return;
             }
 
+            if (TryHandleBinding(current))
+            {
+                return;
+            }
+
             if (TryAppendNumeric(current))
             {
                 ApplyCurrentTransform();
                 current.Use();
             }
+        }
+
+        private static bool TryHandleBinding(Event current)
+        {
+            KeyCode key = current.keyCode;
+            TransformMode? mode = null;
+            Constraint axis = Constraint.None;
+
+            if (key == ModalTransformSettings.Get(ModalTransformSettings.Action.Translate))
+            {
+                mode = TransformMode.Translate;
+            }
+            else if (key == ModalTransformSettings.Get(ModalTransformSettings.Action.Rotate))
+            {
+                mode = TransformMode.Rotate;
+            }
+            else if (key == ModalTransformSettings.Get(ModalTransformSettings.Action.Scale))
+            {
+                mode = TransformMode.Scale;
+            }
+            else if (key == ModalTransformSettings.Get(ModalTransformSettings.Action.AxisX))
+            {
+                axis = current.shift ? Constraint.PlaneX : Constraint.X;
+            }
+            else if (key == ModalTransformSettings.Get(ModalTransformSettings.Action.AxisY))
+            {
+                axis = current.shift ? Constraint.PlaneY : Constraint.Y;
+            }
+            else if (key == ModalTransformSettings.Get(ModalTransformSettings.Action.AxisZ))
+            {
+                axis = current.shift ? Constraint.PlaneZ : Constraint.Z;
+            }
+            else
+            {
+                return false;
+            }
+
+            current.Use();
+            if (!TryAcceptModalKey(current))
+            {
+                return true;
+            }
+
+            if (mode.HasValue)
+            {
+                SwitchMode(mode.Value);
+            }
+            else
+            {
+                SetConstraint(axis);
+            }
+            return true;
         }
 
         private static bool TryAcceptModalKey(Event current)
@@ -352,6 +367,7 @@ namespace Figix.ModalTransformUnity
             RestoreSnapshots();
             s_Mode = mode;
             s_Constraint = Constraint.None;
+            s_ConstraintLocal = false;
             s_StartMouse = s_CurrentMouse;
             s_NumericInput = string.Empty;
             ApplyCurrentTransform();
@@ -359,7 +375,21 @@ namespace Figix.ModalTransformUnity
 
         private static void SetConstraint(Constraint constraint)
         {
-            s_Constraint = s_Constraint == constraint ? Constraint.None : constraint;
+            // Press 1: world axis, press 2: local axis, press 3: free again.
+            if (s_Constraint != constraint)
+            {
+                s_Constraint = constraint;
+                s_ConstraintLocal = false;
+            }
+            else if (!s_ConstraintLocal)
+            {
+                s_ConstraintLocal = true;
+            }
+            else
+            {
+                s_Constraint = Constraint.None;
+                s_ConstraintLocal = false;
+            }
             ApplyCurrentTransform();
         }
 
@@ -466,9 +496,9 @@ namespace Figix.ModalTransformUnity
                 }
                 else
                 {
-                    Vector3 localOffset = Quaternion.Inverse(s_BasisRotation) * pivotOffset;
+                    Vector3 localOffset = Quaternion.Inverse(CurrentBasis()) * pivotOffset;
                     localOffset = Vector3.Scale(localOffset, componentFactor);
-                    snapshot.Target.position = s_Pivot + s_BasisRotation * localOffset;
+                    snapshot.Target.position = s_Pivot + CurrentBasis() * localOffset;
                 }
             }
         }
@@ -537,6 +567,13 @@ namespace Figix.ModalTransformUnity
             return (s_ViewRight * mouseDelta.x - s_ViewUp * mouseDelta.y) * unitsPerPixel;
         }
 
+        private static Quaternion CurrentBasis()
+        {
+            return s_ConstraintLocal && Snapshots.Count > 0
+                ? Snapshots[0].Rotation
+                : Quaternion.identity;
+        }
+
         private static Vector3 GetConstraintAxis(Constraint constraint)
         {
             Vector3 localAxis;
@@ -552,7 +589,7 @@ namespace Figix.ModalTransformUnity
                     localAxis = Vector3.right;
                     break;
             }
-            return s_BasisRotation * localAxis;
+            return CurrentBasis() * localAxis;
         }
 
         private static Vector3 GetExcludedAxis(Constraint constraint)
@@ -560,11 +597,11 @@ namespace Figix.ModalTransformUnity
             switch (constraint)
             {
                 case Constraint.PlaneY:
-                    return s_BasisRotation * Vector3.up;
+                    return CurrentBasis() * Vector3.up;
                 case Constraint.PlaneZ:
-                    return s_BasisRotation * Vector3.forward;
+                    return CurrentBasis() * Vector3.forward;
                 default:
-                    return s_BasisRotation * Vector3.right;
+                    return CurrentBasis() * Vector3.right;
             }
         }
 
@@ -683,6 +720,7 @@ namespace Figix.ModalTransformUnity
 
         private static void EndSession()
         {
+            EndCursorCapture();
             Tools.hidden = s_PreviousToolsHidden;
             s_IsActive = false;
             s_UndoGroup = -1;
@@ -708,10 +746,83 @@ namespace Figix.ModalTransformUnity
             }
         }
 
+        // Infinite mouse movement. On Windows the cursor is re-centred on its start point every
+        // tick and the travelled distance is accumulated, so it works outside the Scene view and
+        // across monitors. Other platforms fall back to Unity's mouse jumping.
+        private static void BeginCursorCapture()
+        {
+            s_UseNativeCursor = false;
+#if UNITY_EDITOR_WIN
+            POINT point;
+            if (GetCursorPos(out point))
+            {
+                s_AnchorX = point.X;
+                s_AnchorY = point.Y;
+                s_UseNativeCursor = true;
+                return;
+            }
+#endif
+            EditorGUIUtility.SetWantsMouseJumping(1);
+        }
+
+        private static void EndCursorCapture()
+        {
+            if (!s_UseNativeCursor)
+            {
+                EditorGUIUtility.SetWantsMouseJumping(0);
+            }
+            s_UseNativeCursor = false;
+        }
+
+        private static void OnEditorUpdate()
+        {
+#if UNITY_EDITOR_WIN
+            if (!s_IsActive || !s_UseNativeCursor || !InternalEditorUtility.isApplicationActive)
+            {
+                return;
+            }
+
+            POINT point;
+            if (!GetCursorPos(out point))
+            {
+                return;
+            }
+
+            int dx = point.X - s_AnchorX;
+            int dy = point.Y - s_AnchorY;
+            if (dx == 0 && dy == 0)
+            {
+                return;
+            }
+
+            SetCursorPos(s_AnchorX, s_AnchorY);
+            s_CurrentMouse += new Vector2(dx, dy) / EditorGUIUtility.pixelsPerPoint;
+            ApplyCurrentTransform();
+            SceneView.RepaintAll();
+#endif
+        }
+
+#if UNITY_EDITOR_WIN
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out POINT point);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetCursorPos(int x, int y);
+#endif
+
         private static void DrawHud(SceneView sceneView)
         {
             Handles.BeginGUI();
-            string constraint = s_Constraint == Constraint.None ? "Free" : s_Constraint.ToString();
+            string constraint = s_Constraint == Constraint.None
+                ? "Free"
+                : s_Constraint + (s_ConstraintLocal ? " (Local)" : " (World)");
             string numeric = string.IsNullOrEmpty(s_NumericInput) ? "Mouse" : s_NumericInput;
             GUI.Box(
                 new Rect(12f, sceneView.position.height - 58f, 320f, 38f),

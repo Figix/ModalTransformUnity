@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0] - 2026-11-02
+
+### Added
+
+- Configurable W/E/R and X/Y/Z key bindings in Preferences → Figix → Modal Transform.
+- Infinite mouse movement while a modal transform is active.
+- In-preferences version display and update button.
+
+### Fixed
+
+- Pressing an axis key twice now switches World → Local instead of resetting to free mode.
+
 ## [0.1.0] - 2026-10-13
 
 ### Added
