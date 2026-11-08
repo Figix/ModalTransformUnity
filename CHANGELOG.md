@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.3] - 2026-11-09
+
+### Changed
+
+- Relicensed under the MIT License (previously a custom license that prohibited resale).
+
 ## [0.2.2] - 2026-11-02
 
 ### Added

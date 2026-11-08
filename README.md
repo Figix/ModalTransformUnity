@@ -138,4 +138,4 @@ Settings survive updates. If something breaks after updating, pin the previous t
 
 ## License
 
-Copyright © 2026 Figix. Commercial project use and modification are permitted. Free redistribution requires attribution, and resale of this package or a modified standalone version is prohibited. See [LICENSE](LICENSE) for the complete terms.
+Copyright © 2026 Figix. Released under the [MIT License](LICENSE).

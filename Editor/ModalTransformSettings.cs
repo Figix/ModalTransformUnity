@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Figix. All rights reserved.
+// Copyright (c) 2026 Figix. Licensed under the MIT License.
 
 using System.Collections.Generic;
 using UnityEditor;
