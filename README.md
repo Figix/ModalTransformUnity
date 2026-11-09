@@ -21,7 +21,23 @@ The package deliberately uses APIs available in Unity 6000.0. Future Unity 6 rel
 
 ## Installation
 
-### Method 1: Unity Package Manager Git URL (recommended)
+### Method 0: OpenUPM (recommended)
+
+With the [OpenUPM CLI](https://openupm.com/docs/getting-started.html):
+
+```text
+openupm add com.figix.modal-transform
+```
+
+Or add this scoped registry in **Project Settings → Package Manager**, then install the package from **Package Manager → My Registries**:
+
+- Name: `OpenUPM`
+- URL: `https://package.openupm.com`
+- Scope(s): `com.figix.modal-transform`
+
+Updates then appear in Package Manager with a normal **Update** button.
+
+### Method 1: Unity Package Manager Git URL
 
 1. Open your Unity project.
 2. Go to **Window → Package Management → Package Manager**.
@@ -121,7 +137,7 @@ Planned follow-ups include snapping controls, pivot-mode refinements, prefab-sta
 
 ## Updating
 
-Unity does not track Git packages automatically. Pick one:
+Packages installed from OpenUPM update through Package Manager's **Update** button. Unity does not track Git packages automatically, so for Git installs pick one:
 
 - **Pinned tag (recommended):** install with `...ModalTransformUnity.git#v0.2.2`. To update, change the tag in `Packages/manifest.json` (or the Package Manager URL) and let Unity re-resolve. See [CHANGELOG](CHANGELOG.md) for new tags.
 - **Unpinned URL:** Unity locks the commit in `Packages/packages-lock.json`. Update with **Edit → Preferences → Figix → Modal Transform → Update to latest**, or in Package Manager select the package and press **Update** if offered.
